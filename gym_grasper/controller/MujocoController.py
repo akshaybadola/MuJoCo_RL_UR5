@@ -5,12 +5,14 @@
 from collections import defaultdict
 import os
 from pathlib import Path
-import mujoco_py as mp
+import mujoco as mp
+from mujoco import simulate
+# import mujoco_py as mp
 import time
 import numpy as np
 from simple_pid import PID
 from termcolor import colored
-import ikpy
+import ikpy.chain as chain
 from pyquaternion import Quaternion
 import cv2 as cv
 import matplotlib.pyplot as plt
@@ -30,11 +32,13 @@ class MJ_Controller(object):
         path = os.path.realpath(__file__)
         path = str(Path(path).parent.parent.parent)
         if model is None:
-            self.model = mp.load_model_from_path(path + "/UR5+gripper/UR5gripper_2_finger.xml")
+            self.model = mp.MjModel.from_xml_path(path + "/UR5+gripper/UR5gripper_2_finger.xml")
         else:
             self.model = model
-        self.sim = mp.MjSim(self.model) if simulation is None else simulation
-        self.viewer = mp.MjViewer(self.sim) if viewer is None else viewer
+        self.data = mp.MjData(self.model)
+        # self.sim = simulate.launch(self.model, self.data) if simulation is None else simulation
+        # self.viewer = mp.MjvScene()
+        # self.viewer = mp.MjViewer(self.sim) if viewer is None else viewer
         self.create_lists()
         self.groups = defaultdict(list)
         self.groups["All"] = list(range(len(self.sim.data.ctrl)))
@@ -44,7 +48,7 @@ class MJ_Controller(object):
         self.reached_target = False
         self.current_output = np.zeros(len(self.sim.data.ctrl))
         self.image_counter = 0
-        self.ee_chain = ikpy.chain.Chain.from_urdf_file(path + "/UR5+gripper/ur5_gripper.urdf")
+        self.ee_chain = chain.Chain.from_urdf_file(path + "/UR5+gripper/ur5_gripper.urdf")
         self.cam_matrix = None
         self.cam_init = False
         self.last_movement_steps = 0
@@ -239,14 +243,15 @@ class MJ_Controller(object):
         # self.controller_list.append(PID(1*p_scale, 0.1*i_scale, 0.05*d_scale, setpoint=-0.1, output_limits=(-0.8, 0.8), sample_time=sample_time)) # Gripperpalm Finger 1 Joint
 
         self.current_target_joint_values = [
-            self.controller_list[i].setpoint for i in range(len(self.sim.data.ctrl))
+            self.controller_list[i].setpoint for i in range(len(self.data.ctrl))
         ]
 
         self.current_target_joint_values = np.array(self.current_target_joint_values)
 
         self.current_output = [controller(0) for controller in self.controller_list]
         self.actuators = []
-        for i in range(len(self.sim.data.ctrl)):
+        for i in range(len(self.data.ctrl)):
+            import ipdb; ipdb.set_trace()
             item = [i, self.model.actuator_id2name(i)]
             item.append(self.model.actuator_trnid[i][0])
             item.append(self.model.joint_id2name(self.model.actuator_trnid[i][0]))

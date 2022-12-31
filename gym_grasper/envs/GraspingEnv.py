@@ -25,6 +25,17 @@ from pyquaternion import Quaternion
 class GraspEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     # def __init__(self, file='/UR5+gripper/UR5gripper_2_finger.xml', image_width=200, image_height=200, show_obs=True, demo=False, render=False):
     # def __init__(self, file='/UR5+gripper/UR5gripper_2_finger.xml', image_width=200, image_height=200, show_obs=True, demo=False, render=False):
+
+    metadata = {
+            "render_modes": [
+                "human",
+                "rgb_array",
+                "depth_array",
+            ],
+            "render_fps": 500,
+            "video.frames_per_second": 25,
+    }
+
     def __init__(
         self,
         file="/UR5+gripper/UR5gripper_2_finger_many_objects.xml",
@@ -44,11 +55,13 @@ class GraspEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         path = os.path.realpath(__file__)
         path = str(Path(path).parent.parent.parent)
         full_path = path + file
-        mujoco_env.MujocoEnv.__init__(self, full_path, 1)
+        observation_space = spaces.Box(low=-np.inf, high=np.inf,
+                                       shape=(6, ), dtype=np.float64) 
+        mujoco_env.MujocoEnv.__init__(self, full_path, 1, observation_space) 
         if render:
             # render once to initialize a viewer object
             self.render()
-        self.controller = MJ_Controller(self.model, self.sim, self.viewer)
+        self.controller = MJ_Controller(self.model, None, self.viewer)
         self.initialized = True
         self.grasp_counter = 0
         self.show_observations = show_obs
@@ -415,6 +428,7 @@ class GraspEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         qpos = self.data.qpos
         qvel = self.data.qvel
 
+        import ipdb; ipdb.set_trace()
         qpos[self.controller.actuated_joint_ids] = [0, -1.57, 1.57, -1.57, -1.57, 0.0, 0.3]
 
         n_objects = 40
